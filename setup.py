@@ -16,7 +16,8 @@ setup(
     install_requires=[
         'td-ameritrade-python-api',
         'pandas',
-        'numpy'
+        'numpy',
+        'holidays'
     ],
     keywords='finance, td ameritrade, api, trading robot',
     packages=find_packages(include=['pyrobot'], exclude=['*config.py']),

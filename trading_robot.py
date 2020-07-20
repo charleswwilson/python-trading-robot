@@ -20,18 +20,22 @@ CLIENT_ID = config.get('main', 'CLIENT_ID')
 REDIRECT_URI = config.get('main', 'REDIRECT_URI')
 CREDENTIALS_PATH = config.get('main', 'JSON_PATH')
 ACCOUNT_NUMBER = config.get('main', 'ACCOUNT_NUMBER')
+FIRST_ACCOUNT_NUMBER = config.get('main', 'FIRST_ACCOUNT_NUMBER')
 
 # Initalize the robot.
 trading_robot = PyRobot(
     client_id=CLIENT_ID,
     redirect_uri=REDIRECT_URI,
     credentials_path=CREDENTIALS_PATH,
-    paper_trading=True
+    trading_account=ACCOUNT_NUMBER,
+    first_trading_account= FIRST_ACCOUNT_NUMBER,
+    paper_trading=False
 )
-
+trading_robot_positions = trading_robot.get_positions(FIRST_ACCOUNT_NUMBER)
 # Create a Portfolio
 trading_robot_portfolio = trading_robot.create_portfolio()
-
+trading_robot_portfolio.add_positions(trading_robot_positions)
+"""
 # Define mutliple positions to add.
 multi_position = [
     {
@@ -224,3 +228,4 @@ while True:
 
     # Wait till the next bar.
     trading_robot.wait_till_next_bar(last_bar_timestamp=last_bar_timestamp)
+"""

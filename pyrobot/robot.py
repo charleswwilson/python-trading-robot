@@ -21,10 +21,18 @@ from pyrobot.stock_frame import StockFrame
 from td.client import TDClient
 from td.utils import milliseconds_since_epoch
 
+import pytz, holidays
+
 
 class PyRobot():
 
-    def __init__(self, client_id: str, redirect_uri: str, paper_trading: bool = True, credentials_path: Optional[str] = None, trading_account: Optional[str] = None) -> None:
+    def __init__(self, 
+                 client_id: str, 
+                 redirect_uri: str, 
+                 paper_trading: bool = True, 
+                 credentials_path: Optional[str] = None, 
+                 trading_account: Optional[str] = None, 
+                 first_trading_account: Optional[str] = None):
         """Initalizes a new instance of the robot and logs into the API platform specified.
 
         Arguments:
@@ -46,6 +54,7 @@ class PyRobot():
 
         # Set the attirbutes
         self.trading_account = trading_account
+        self.first_trading_account = first_trading_account
         self.client_id = client_id
         self.redirect_uri = redirect_uri
         self.credentials_path = credentials_path
@@ -82,6 +91,49 @@ class PyRobot():
 
         return td_client
 
+
+
+
+
+    def afterHours(self, now = None):
+        tz = pytz.timezone('US/Eastern')
+        us_holidays = holidays.US()        
+        market = ''
+        state = ''
+        if not now:
+            now = datetime.now(tz)
+        premarket_open = time(hour = 7, minute= 0, second= 0)    
+        openTime = time(hour = 9, minute = 30, second = 0)
+        closeTime = time(hour = 16, minute = 0, second = 0)
+        postmarket_close = time(hour= 19, minute= 0, second= 0)
+        
+        # If it's a weekend
+        if now.date().weekday() > 4:
+            market = "Closed" 
+            state = "Weekend"       
+        # If a holiday
+        elif now.strftime('%Y-%m-%d') in us_holidays:
+            market = "Closed"
+            state = us_holidays.get(now.strftime('%Y-%m-%d'))
+        # Premarket from 7:00 am to 9:30
+        elif (now.time() > premarket_open) and (now.time() < openTime):
+            market = "Open"
+            state = "Premarket"
+
+        # Regular market hours
+        elif (now.time() > openTime) and (now.time() < closeTime):
+            market = "Open"
+            state = "Market Open"
+        # Postmarket from 4:00pm to 7:00pm
+        elif (now.time() > closeTime) and (now.time() < postmarket_close):
+            market = "Open"
+            state = "Postmarket"
+        # Catch for the unknown
+        else:
+            market = "Closed"
+            state = "Closed"
+        return market , state     
+
     @property
     def pre_market_open(self) -> bool:
         """Checks if pre-market is open.
@@ -106,24 +158,12 @@ class PyRobot():
 
         """
 
-        pre_market_start_time = datetime.utcnow().replace(
-            hour=8,
-            minute=00,
-            second=00
-        ).timestamp()
-
-        market_start_time = datetime.utcnow().replace(
-            hour=13,
-            minute=30,
-            second=00
-        ).timestamp()
-
-        right_now = datetime.utcnow().timestamp()
-
-        if market_start_time >= right_now >= pre_market_start_time:
-            return True
+        market, state = self.afterHours()
+        if state == "Premarket":
+            return True 
         else:
-            return False
+            return False 
+
 
     @property
     def post_market_open(self):
@@ -149,24 +189,11 @@ class PyRobot():
 
         """
 
-        post_market_end_time = datetime.utcnow().replace(
-            hour=00,
-            minute=00,
-            second=00
-        ).timestamp()
-
-        market_end_time = datetime.utcnow().replace(
-            hour=20,
-            minute=00,
-            second=00
-        ).timestamp()
-
-        right_now = datetime.utcnow().timestamp()
-
-        if post_market_end_time >= right_now >= market_end_time:
-            return True
+        market, state = self.afterHours()
+        if state == "Postmarket":
+            return True 
         else:
-            return False
+            return False 
 
     @property
     def regular_market_open(self):
@@ -192,24 +219,13 @@ class PyRobot():
 
         """
 
-        market_start_time = datetime.utcnow().replace(
-            hour=13,
-            minute=30,
-            second=00
-        ).timestamp()
 
-        market_end_time = datetime.utcnow().replace(
-            hour=20,
-            minute=00,
-            second=00
-        ).timestamp()
-
-        right_now = datetime.utcnow().timestamp()
-
-        if market_end_time >= right_now >= market_start_time:
-            return True
+        market, state = self.afterHours()
+        
+        if state == "Market Open":
+            return True 
         else:
-            return False
+            return False 
 
     def create_portfolio(self) -> Portfolio:
         """Create a new portfolio.
@@ -863,7 +879,7 @@ class PyRobot():
 
         return True
 
-    def get_accounts(self, account_number: str = None, all_accounts: bool = False) -> dict:
+    def get_accounts(self, account_number: str = None, all_accounts: bool = False):
         """Returns all the account balances for a specified account.
 
         Keyword Arguments:
@@ -885,7 +901,7 @@ class PyRobot():
                 redirect_uri=REDIRECT_URI,
                 credentials_path=CREDENTIALS_PATH
             )
-            >>> trading_robot_accounts = trading_robot.session.get_accounts(
+            >>> trading_robot_accounts = tradeconsole_session.get_accounts(
                 account_number="<YOUR ACCOUNT NUMBER>"
             )
             >>> trading_robot_accounts
@@ -1051,7 +1067,7 @@ class PyRobot():
 
         return account_lists
 
-    def get_positions(self, account_number: str = None, all_accounts: bool = False) -> List[Dict]:
+    def get_positions(self, account_number: str = None, all_accounts: bool = False):
         """Gets all the positions for a specified account number.
 
         Arguments:
@@ -1074,7 +1090,7 @@ class PyRobot():
                 redirect_uri=REDIRECT_URI,
                 credentials_path=CREDENTIALS_PATH
             )
-            >>> trading_robot_positions = trading_robot.session.get_positions(
+            >>> trading_robot_positions = tradeconsole_session.get_positions(
                 account_number="<YOUR ACCOUNT NUMBER>"
             )
             >>> trading_robot_positions
@@ -1128,7 +1144,7 @@ class PyRobot():
             account=account,
             fields=['positions']
         )
-
+        
         # Parse the positions.
         positions_parsed = self._parse_account_positions(
             positions_response=positions
@@ -1152,7 +1168,7 @@ class PyRobot():
 
         if isinstance(positions_response, dict):
 
-        
+            position_dict = {}
 
             for account_type_key in positions_response:
 
@@ -1163,6 +1179,7 @@ class PyRobot():
 
                 for position in positions:
                     position_dict = {}
+
                     position_dict['account_number'] = account_id
                     position_dict['average_price'] = position['averagePrice']
                     position_dict['market_value'] = position['marketValue']
@@ -1185,14 +1202,17 @@ class PyRobot():
                     position_dict['type'] = position['instrument'].get(
                         'type', ""
                     )
-
+                    #print(position_dict)
                     positions_lists.append(position_dict)
+                    # print(positions_lists)
+                    # print('==============')
+
 
         elif isinstance(positions_response, list):
 
             for account in positions_response:
 
-
+                position_dict = {}
 
                 for account_type_key in account:
 
@@ -1202,7 +1222,6 @@ class PyRobot():
                     positions = account_info['positions']
 
                     for position in positions:
-                        position_dict = {}
                         position_dict['account_number'] = account_id
                         position_dict['average_price'] = position['averagePrice']
                         position_dict['market_value'] = position['marketValue']

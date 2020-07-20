@@ -98,8 +98,12 @@ class Portfolio():
                     symbol=position['symbol'],
                     asset_type=position['asset_type'],
                     quantity=position.get('quantity', 0),
+                    short_quantity=position.get('short_quantity', 0),
+                    long_quantity=position.get('long_quantity', 0),
                     purchase_price=position.get('purchase_price', 0.0),
+                    average_price=position.get('average_price', 0.0),
                     purchase_date=position.get('purchase_date', None)
+                    
                 )
 
             return self.positions
@@ -107,7 +111,7 @@ class Portfolio():
         else:
             raise TypeError('Positions must be a list of dictionaries.')
 
-    def add_position(self, symbol: str, asset_type: str, purchase_date: Optional[str] = None, quantity: int = 0, purchase_price: float = 0.0) -> dict:
+    def add_position(self, symbol: str, asset_type: str, purchase_date: Optional[str] = None, quantity: int = 0, short_quantity: int = 0, long_quantity: int = 0,purchase_price: float = 0.0, average_price: float = 0.0) -> dict:
         """Adds a single new position to the the portfolio.
 
         Arguments:
@@ -151,12 +155,16 @@ class Portfolio():
 
         self.positions[symbol] = {}
         self.positions[symbol]['symbol'] = symbol
-        self.positions[symbol]['quantity'] = quantity
+        self.positions[symbol]['quantity'] = long_quantity + short_quantity
         self.positions[symbol]['purchase_price'] = purchase_price
+        self.positions[symbol]['average_price'] = average_price
         self.positions[symbol]['purchase_date'] = purchase_date
         self.positions[symbol]['asset_type'] = asset_type
-
-        if purchase_date:
+        if not purchase_date:
+            self.positions[symbol]['purchase_date'] = 'Unknown' 
+        if purchase_price == 0.0:
+            self.positions[symbol]['purchase_price'] = average_price
+        if self.positions[symbol]['quantity'] > 0:
             self.positions[symbol]['ownership_status'] = True
         else:
             self.positions[symbol]['ownership_status'] = False
